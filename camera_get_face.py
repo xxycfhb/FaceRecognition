@@ -33,17 +33,39 @@ def mouth_aspect_ratio(mouth):
     return mar
 
 
+# 点头
+def nod_aspect_ratio(size, pre_point, now_point):
+    return abs(float((pre_point[1] - now_point[1]) / (size[0] / 2)))
+
+
+
+# 摇头
+def shake_aspect_ratio(size, pre_point, now_point):
+    return abs(float((pre_point[0] - now_point[0]) / (size[1] / 2)))
+
+
+
+
 # 活体检测常量
 EYE_AR_THRESH = 0.2         # 眨眼阈值
 EYE_AR_CONSEC_FRAMES = 2    # 眨眼帧数
 MAR_THRESH = 0.5            # 张嘴阈值
 MOUTH_AR_CONSEC_FRAMES = 3  # 张嘴帧数
+NOD_THRESH = 0.03           # 点头阈值
+NOD_CONSEC_FRAMES = 5       # 点头帧数
+SHAKE_THRESH = 0.03         # 摇头阈值
+SHAKE_CONSEC_FRAMES = 5     # 摇头帧数
 COUNT = 0
 TOTAL = 0                   # 成功眨眼次数
 mCOUNT = 0
 mTOTAL = 0                  # 成功张嘴次数
+nCOUNT = 0
+nTOTAL = 0                  # 成功点头次数
+sCOUNT = 0
+sTOTAL = 0                  # 成功摇头次数
 r_eye_ear = 0
 l_eye_ear = 0
+compare_point = [0, 0]
 
 while cap.isOpened():
     flag, frame = cap.read()
@@ -83,10 +105,22 @@ while cap.isOpened():
         left_eye = landmarks[42:48]
         right_eye = landmarks[36:41]
         mouth_points = landmarks[48:68]
+        nose_points = landmarks[32:36]
+        nose_center = nose_points.mean(axis=0).tolist()[0]
+        noseHull = cv2.convexHull(nose_points)
+
+        size = frame.shape
+
         l_eye_ear = eye_aspect_ratio(left_eye)
         r_eye_ear = eye_aspect_ratio(left_eye)
         t_ear = (l_eye_ear + r_eye_ear) / 2.0
         mouth_ear = mouth_aspect_ratio(mouth_points)
+        nod_value, shake_value = 0, 0
+        if compare_point[0] != 0 and compare_point[0] != 0:
+            nod_value = nod_aspect_ratio(size, nose_center, compare_point)
+            shake_value = shake_aspect_ratio(size, nose_center, compare_point)
+        compare_point = nose_center
+
         if t_ear < EYE_AR_THRESH:
             COUNT += 1
         else:
@@ -101,23 +135,54 @@ while cap.isOpened():
                 # 张嘴
                 mTOTAL += 1
             mCOUNT = 0
-        # 眨眼成功，报出信息【此处若不需要可以删除！！！！！！】
+        if nod_value > NOD_THRESH:
+            nCOUNT += 1
+        else:
+            if nCOUNT >= NOD_CONSEC_FRAMES:
+                # 点头
+                nTOTAL += 1
+            nCOUNT = 0
+        if shake_value > SHAKE_THRESH:
+            sCOUNT += 1
+        else:
+            if sCOUNT >= SHAKE_CONSEC_FRAMES:
+                # 摇头
+                sTOTAL += 1
+            sCOUNT = 0
+
+        sum = 0
+
+        # 眨眼成功，报出信息
         if TOTAL > 0:
+            sum += 1
             frame = cv2.putText(frame, 'Eyes moved', tuple([d.left() - ww, d.bottom() + 60]),
                                 cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-        # 张嘴成功，报出信息【此处若不需要可以删除！！！！！！】
+        # 张嘴成功，报出信息
         if mTOTAL > 0:
+            sum += 1
             frame = cv2.putText(frame, 'Mouse moved', tuple([d.left() - ww, d.bottom() + 80]),
                                 cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-        # 眨眼和张嘴均成功时，活体检测完成【此处的眨眼和张嘴没有区分先后顺序，后续如果需要区分先后顺序可以再修改！！！！！！！！！】
-        if TOTAL > 0 and mTOTAL > 0:
-            frame = cv2.putText(frame, 'Live detection succeed!', tuple([d.left() - ww, d.bottom() + 110]),
+        # 点头成功，报出信息
+        if nTOTAL > 0:
+            sum += 1
+            frame = cv2.putText(frame, 'Head nodded', tuple([d.left() - ww, d.bottom() + 100]),
+                                cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
+        # 摇头成功，报出信息
+        if sTOTAL > 0:
+            sum += 1
+            frame = cv2.putText(frame, 'Head shaked', tuple([d.left() - ww, d.bottom() + 120]),
+                                cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
+        # 当四种检测机制有三种及以上成功时，通过验活机制
+        if sum > 2:
+            frame = cv2.putText(frame, 'Live detection succeed!', tuple([d.left() - ww, d.bottom() + 150]),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
     else:
         frame = cv2.putText(frame, 'Sorry, please try again! ', (100, 200), cv2.FONT_HERSHEY_SIMPLEX, 1,
                             (0, 0, 255), 2)
         TOTAL = 0
         mTOTAL = 0
+        nTOTAL = 0
+        sTOTAL = 0
 
     cv2.namedWindow("camera", 1)
     cv2.imshow("camera", frame)
