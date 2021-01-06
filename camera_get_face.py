@@ -7,7 +7,8 @@ from scipy.spatial import distance as dist
 path_screenshots = "data/screenshots/"
 
 detector = dlib.get_frontal_face_detector()
-predictor = dlib.shape_predictor('data/dlib/shape_predictor_68_face_landmarks.dat')
+predictor = dlib.shape_predictor(
+    'data/dlib/shape_predictor_68_face_landmarks.dat')
 
 cap = cv2.VideoCapture(0)
 
@@ -38,12 +39,9 @@ def nod_aspect_ratio(size, pre_point, now_point):
     return abs(float((pre_point[1] - now_point[1]) / (size[0] / 2)))
 
 
-
 # 摇头
 def shake_aspect_ratio(size, pre_point, now_point):
     return abs(float((pre_point[0] - now_point[0]) / (size[1] / 2)))
-
-
 
 
 # 活体检测常量
@@ -80,7 +78,8 @@ while cap.isOpened():
 
     # 当前设置仅识别一张人脸，为了便于活体检测
     if len(faces) == 1:
-        landmarks = np.mat([[p.x, p.y] for p in predictor(frame, faces[0]).parts()])
+        landmarks = np.mat([[p.x, p.y]
+                            for p in predictor(frame, faces[0]).parts()])
         for k, d in enumerate(faces):
             # 计算矩形框大小: Compute the size of rectangle box
             height = (d.bottom() - d.top())
@@ -121,33 +120,32 @@ while cap.isOpened():
             shake_value = shake_aspect_ratio(size, nose_center, compare_point)
         compare_point = nose_center
 
-        if t_ear < EYE_AR_THRESH:
+        if not TOTAL and t_ear < EYE_AR_THRESH:
             COUNT += 1
-        else:
-            if COUNT >= EYE_AR_CONSEC_FRAMES:
+        if COUNT >= EYE_AR_CONSEC_FRAMES:
                 # 眨眼
-                TOTAL += 1
+            TOTAL += 1
             COUNT = 0
-        if mouth_ear > MAR_THRESH:
+
+        if not mTOTAL and mouth_ear > MAR_THRESH:
             mCOUNT += 1
-        else:
-            if mCOUNT >= MOUTH_AR_CONSEC_FRAMES:
-                # 张嘴
-                mTOTAL += 1
+        if mCOUNT >= MOUTH_AR_CONSEC_FRAMES:
+            # 张嘴
+            mTOTAL += 1
             mCOUNT = 0
-        if nod_value > NOD_THRESH:
+
+        if not nTOTAL and nod_value > NOD_THRESH:
             nCOUNT += 1
-        else:
-            if nCOUNT >= NOD_CONSEC_FRAMES:
-                # 点头
-                nTOTAL += 1
+        if nCOUNT >= NOD_CONSEC_FRAMES:
+            # 点头
+            nTOTAL += 1
             nCOUNT = 0
+
         if shake_value > SHAKE_THRESH:
             sCOUNT += 1
-        else:
-            if sCOUNT >= SHAKE_CONSEC_FRAMES:
-                # 摇头
-                sTOTAL += 1
+        if sCOUNT >= SHAKE_CONSEC_FRAMES:
+            # 摇头
+            sTOTAL += 1
             sCOUNT = 0
 
         sum = 0
@@ -160,7 +158,7 @@ while cap.isOpened():
         # 张嘴成功，报出信息
         if mTOTAL > 0:
             sum += 1
-            frame = cv2.putText(frame, 'Mouse moved', tuple([d.left() - ww, d.bottom() + 80]),
+            frame = cv2.putText(frame, 'Mouth moved', tuple([d.left() - ww, d.bottom() + 80]),
                                 cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
         # 点头成功，报出信息
         if nTOTAL > 0:
@@ -179,9 +177,13 @@ while cap.isOpened():
     else:
         frame = cv2.putText(frame, 'Sorry, please try again! ', (100, 200), cv2.FONT_HERSHEY_SIMPLEX, 1,
                             (0, 0, 255), 2)
+        COUNT = 0
         TOTAL = 0
+        mCOUNT = 0
         mTOTAL = 0
+        nCOUNT = 0
         nTOTAL = 0
+        sCOUNT = 0
         sTOTAL = 0
 
     cv2.namedWindow("camera", 1)
