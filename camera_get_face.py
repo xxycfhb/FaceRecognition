@@ -174,6 +174,36 @@ while cap.isOpened():
         if sum > 2:
             frame = cv2.putText(frame, 'Live detection succeed!', tuple([d.left() - ww, d.bottom() + 150]),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+            # 进行人脸匹配，显示用户信息
+            pic_path = "./data/user_pic/"
+            user_pic_list = os.listdir(pic_path)
+            features = []
+            for user in user_pic_list:
+                img = cv2.imread(pic_path + user)
+                user_img_gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+                user_faces = detector(user_img_gray, 0)
+                user_landmarks = np.mat([[p.x, p.y] for p in predictor(img, user_faces[0]).parts()])
+                features.append(np.array(user_landmarks))
+
+            curr = np.array(landmarks)
+            dists = []
+            for i in features:
+                dist_ = np.linalg.norm(i - curr)
+                dists.append(dist_)
+
+            c_d = dict(zip(user_pic_list, dists))
+            cd_sorted = sorted(c_d.items(), key=lambda d: d[1])
+            simi_value = cd_sorted[0][1]
+            print(simi_value)
+            if simi_value < 625:
+                frame = cv2.putText(frame, 'Welcome ' + str(cd_sorted[0][0][:-4]),
+                                    tuple([d.left() - ww, d.bottom() + 140]),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            else:
+                frame = cv2.putText(frame, 'Sorry, you are unknow! ', tuple([d.left() - ww, d.bottom() + 140]),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
     else:
         frame = cv2.putText(frame, 'Sorry, please try again! ', (100, 200), cv2.FONT_HERSHEY_SIMPLEX, 1,
                             (0, 0, 255), 2)
