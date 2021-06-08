@@ -1,6 +1,7 @@
 import cv2
 import dlib
 import numpy as np
+import os
 from scipy.spatial import distance as dist
 
 
@@ -64,8 +65,11 @@ sTOTAL = 0                  # 成功摇头次数
 r_eye_ear = 0
 l_eye_ear = 0
 compare_point = [0, 0]
+firstDetection = True
+Succeed = False
 
 while cap.isOpened():
+
     flag, frame = cap.read()
     k = cv2.waitKey(100)
     if k == ord('q'):
@@ -171,9 +175,8 @@ while cap.isOpened():
             frame = cv2.putText(frame, 'Head shaked', tuple([d.left() - ww, d.bottom() + 120]),
                                 cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
         # 当四种检测机制有三种及以上成功时，通过验活机制
-        if sum > 2:
-            frame = cv2.putText(frame, 'Live detection succeed!', tuple([d.left() - ww, d.bottom() + 150]),
-                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        if sum > 2 and firstDetection is True:
+            firstDetection = False
 
             # 进行人脸匹配，显示用户信息
             pic_path = "./data/user_pic/"
@@ -196,12 +199,21 @@ while cap.isOpened():
             cd_sorted = sorted(c_d.items(), key=lambda d: d[1])
             simi_value = cd_sorted[0][1]
             print(simi_value)
-            if simi_value < 625:
-                frame = cv2.putText(frame, 'Welcome ' + str(cd_sorted[0][0][:-4]),
-                                    tuple([d.left() - ww, d.bottom() + 140]),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            if simi_value < 400:
+                Succeed = True
+
             else:
-                frame = cv2.putText(frame, 'Sorry, you are unknow! ', tuple([d.left() - ww, d.bottom() + 140]),
+                Succeed = False
+
+        if sum > 2 and Succeed is False:
+            frame = cv2.putText(frame, 'Sorry, you are unknown! ', tuple([d.left() - ww, d.bottom() + 180]),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        elif sum > 2 and Succeed is True:
+            frame = cv2.putText(frame, 'Welcome ' + str(cd_sorted[0][0][:-4]),
+                                tuple([d.left() - ww, d.bottom() + 180]),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        if sum > 2:
+            frame = cv2.putText(frame, 'Live detection succeed!', tuple([d.left() - ww, d.bottom() + 140]),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
     else:
@@ -215,6 +227,8 @@ while cap.isOpened():
         nTOTAL = 0
         sCOUNT = 0
         sTOTAL = 0
+        firstDetection = True
+        Succeed = False
 
     cv2.namedWindow("camera", 1)
     cv2.imshow("camera", frame)
